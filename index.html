@@ -369,7 +369,7 @@
                 try {
                     debugLog("开始调用DeepSeek API");
                     
-                    /* 使用模拟响应进行测试
+                    / 使用模拟响应进行测试
                     // 注释掉下面的代码并取消注释后面的真实API调用代码
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     const mockResponse = {
@@ -383,14 +383,14 @@
                     };
                     
                     debugLog("收到模拟响应");
-                    */
+                    
                     // 隐藏输入指示器
                     typingIndicator.style.display = 'none';
                     
                     // 添加AI回复到聊天界面
                     addAIMessage(mockResponse.choices[0].message.content);
                     
-                    // 取消注释以下代码以使用真实的DeepSeek API
+                    /* 取消注释以下代码以使用真实的DeepSeek API
                     // 直接调用DeepSeek API，使用非流式响应
                     const response = await fetch(DEEPSEEK_API_URL, {
                         method: 'POST',
@@ -436,6 +436,7 @@
                     } else {
                         throw new Error('API返回的数据格式不正确');
                     }
+                    */
                 } catch (error) {
                     debugLog(`发送消息时出错: ${error.message}`);
                     
@@ -480,3 +481,4 @@
     </script>
 </body>
 </html>
+
