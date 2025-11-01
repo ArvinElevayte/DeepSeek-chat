@@ -290,51 +290,47 @@
             }
             
             // 发送消息到DeepSeek API
-            async function sendMessage() {
-                const message = userInput.value.trim();
-                if (!message) return;
-                
-                // 禁用输入和发送按钮
-                userInput.disabled = true;
-                sendButton.disabled = true;
-                
-                // 添加用户消息到聊天界面
-                addUserMessage(message);
-                
-                // 清空输入框
-                userInput.value = '';
-                
-                // 显示输入指示器
-                typingIndicator.style.display = 'block';
-                errorMessage.style.display = 'none';
-                scrollToBottom();
-                
-                try {
-                    // 直接调用DeepSeek API
-                    const response = await fetch(DEEPSEEK_API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-                        },
-                        body: JSON.stringify({
-                            model: 'deepseek-chat',
-                            messages: [
-                                {
-                                    role: 'system',
-                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
-                                },
-                                {
-                                    role: 'user',
-                                    content: message
-                                }
-                            ],
-                            temperature: 0.7,
-                            max_tokens: 2048,
-                            stream: true
-                        })
-                    });
-                    
+           async function sendMessage() {
+    // ... 前面的代码保持不变
+    
+    try {
+        showDebugInfo("开始调用DeepSeek API...");
+        
+        // 使用CORS代理
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const apiUrl = proxyUrl + DEEPSEEK_API_URL;
+        
+        // 尝试调用真实API
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
+                    },
+                    {
+                        role: 'user',
+                        content: message
+                    }
+                ],
+                temperature: 1.5,
+                max_tokens: 2048,
+                stream: false
+            })
+        });
+        
+        // ... 后面的代码保持不变
+    } catch (error) {
+        // ... 错误处理代码
+    }
+}
                     if (!response.ok) {
                         throw new Error(`API错误: ${response.status} ${response.statusText}`);
                     }
@@ -387,5 +383,6 @@
     </script>
 </body>
 </html>
+
 
 
