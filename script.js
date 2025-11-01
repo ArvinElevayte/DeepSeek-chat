@@ -1,8 +1,8 @@
 // script.js
 class DeepSeekChat {
     constructor(apiKey, baseURL = 'https://api.deepseek.com/v1') {
-        this.apiKey = apiKey;
-        this.baseURL = baseURL;
+        this.apiKey = sk-1df626259cdf4af7b117fe76dfe2aec4;
+        this.baseURL = https://api.deepseek.com;
         this.conversationHistory = [];
         
         // 初始化事件监听
