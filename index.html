@@ -183,6 +183,16 @@
             margin-top: 10px;
         }
         
+        .error-message {
+            align-self: flex-start;
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 12px 18px;
+            border-radius: 18px;
+            border-bottom-left-radius: 5px;
+            display: none;
+        }
+        
         @media (max-width: 600px) {
             .container {
                 height: calc(100vh - 20px);
@@ -217,6 +227,10 @@
             <span class="ai-name">DeepSeek助手</span> 正在输入<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
         </div>
         
+        <div class="error-message" id="error-message">
+            抱歉，服务暂时不可用，请稍后重试。
+        </div>
+        
         <div class="input-area">
             <input type="text" id="user-input" placeholder="输入您的问题..." autocomplete="off">
             <button id="send-button">
@@ -237,6 +251,11 @@
             const userInput = document.getElementById('user-input');
             const sendButton = document.getElementById('send-button');
             const typingIndicator = document.getElementById('typing-indicator');
+            const errorMessage = document.getElementById('error-message');
+            
+            // DeepSeek API配置 - 请替换为您的实际API密钥
+            const DEEPSEEK_API_KEY = "sk-1df626259cdf4af7b117fe76dfe2aec4";
+            const DEEPSEEK_API_URL = "https://api.deepseek.com";
             
             // 自动滚动到聊天底部
             function scrollToBottom() {
@@ -270,7 +289,7 @@
                 scrollToBottom();
             }
             
-            // 发送消息到后端
+            // 发送消息到DeepSeek API
             async function sendMessage() {
                 const message = userInput.value.trim();
                 if (!message) return;
@@ -287,20 +306,37 @@
                 
                 // 显示输入指示器
                 typingIndicator.style.display = 'block';
+                errorMessage.style.display = 'none';
                 scrollToBottom();
                 
                 try {
-                    // 发送请求到后端
-                    const response = await fetch('/api/chat', {
+                    // 直接调用DeepSeek API
+                    const response = await fetch(DEEPSEEK_API_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
                         },
-                        body: JSON.stringify({ message: message }),
+                        body: JSON.stringify({
+                            model: 'deepseek-chat',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
+                                },
+                                {
+                                    role: 'user',
+                                    content: message
+                                }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 2048,
+                            stream: false
+                        })
                     });
                     
                     if (!response.ok) {
-                        throw new Error('网络响应不正常');
+                        throw new Error(`API错误: ${response.status} ${response.statusText}`);
                     }
                     
                     const data = await response.json();
@@ -309,10 +345,10 @@
                     typingIndicator.style.display = 'none';
                     
                     // 添加AI回复到聊天界面
-                    if (data.reply) {
-                        addAIMessage(data.reply);
+                    if (data.choices && data.choices.length > 0) {
+                        addAIMessage(data.choices[0].message.content);
                     } else {
-                        addAIMessage('抱歉，我无法处理您的请求。');
+                        throw new Error('API返回的数据格式不正确');
                     }
                 } catch (error) {
                     console.error('发送消息时出错:', error);
@@ -321,7 +357,9 @@
                     typingIndicator.style.display = 'none';
                     
                     // 显示错误消息
-                    addAIMessage('抱歉，发生了错误。请稍后重试。');
+                    errorMessage.textContent = `抱歉，发生了错误: ${error.message}。请稍后重试。`;
+                    errorMessage.style.display = 'block';
+                    scrollToBottom();
                 } finally {
                     // 重新启用输入和发送按钮
                     userInput.disabled = false;
