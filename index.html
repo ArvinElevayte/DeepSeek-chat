@@ -193,18 +193,7 @@
             display: none;
         }
         
-        .debug-panel {
-            background: #f8f9fa;
-            border-top: 1px solid #e9ecef;
-            padding: 10px 20px;
-            font-size: 0.8rem;
-            color: #666;
-            max-height: 120px;
-            overflow-y: auto;
-            display: none;
-        }
-        
-        .debug-toggle {
+        .api-mode {
             position: absolute;
             top: 20px;
             right: 20px;
@@ -215,6 +204,17 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.8rem;
+        }
+        
+        .proxy-status {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
         }
         
         @media (max-width: 600px) {
@@ -231,7 +231,7 @@
                 font-size: 1.5rem;
             }
             
-            .debug-toggle {
+            .api-mode, .proxy-status {
                 position: static;
                 margin-top: 10px;
             }
@@ -243,7 +243,8 @@
         <header>
             <h1>预制爱的DeepSeek聊天助手</h1>
             <div class="subtitle">基于DeepSeek API的智能对话助手</div>
-            <button class="debug-toggle" id="debug-toggle">调试信息</button>
+            <button class="api-mode" id="api-mode">模拟模式</button>
+            <div class="proxy-status" id="proxy-status">代理状态: 未使用</div>
         </header>
         
         <div class="chat-container" id="chat-container">
@@ -259,10 +260,6 @@
         
         <div class="error-message" id="error-message">
             抱歉，服务暂时不可用，请稍后重试。
-        </div>
-        
-        <div class="debug-panel" id="debug-panel">
-            <div id="debug-content"></div>
         </div>
         
         <div class="input-area">
@@ -286,27 +283,49 @@
             const sendButton = document.getElementById('send-button');
             const typingIndicator = document.getElementById('typing-indicator');
             const errorMessage = document.getElementById('error-message');
-            const debugPanel = document.getElementById('debug-panel');
-            const debugContent = document.getElementById('debug-content');
-            const debugToggle = document.getElementById('debug-toggle');
+            const apiModeButton = document.getElementById('api-mode');
+            const proxyStatus = document.getElementById('proxy-status');
             
             // DeepSeek API配置 - 请替换为您的实际API密钥
             const DEEPSEEK_API_KEY = "sk-1df626259cdf4af7b117fe76dfe2aec4";
             const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
             
-            // 调试日志函数
-            function debugLog(message) {
-                const timestamp = new Date().toLocaleTimeString();
-                const logEntry = document.createElement('div');
-                logEntry.textContent = `[${timestamp}] ${message}`;
-                debugContent.appendChild(logEntry);
-                debugPanel.scrollTop = debugPanel.scrollHeight;
-                console.log(message);
+            // CORS代理配置 - 如果主要代理不可用，会自动切换到备用代理
+            const CORS_PROXIES = [
+                "https://api.allorigins.win/raw?url=",
+                "https://cors-anywhere.herokuapp.com/",
+                "https://corsproxy.io/?"
+            ];
+            
+            // 当前模式：true为真实API模式，false为模拟模式
+            let useRealAPI = false;
+            let currentProxyIndex = 0;
+            
+            // 更新模式按钮文本
+            function updateModeButton() {
+                apiModeButton.textContent = useRealAPI ? "真实API模式" : "模拟模式";
             }
             
-            // 切换调试面板显示
-            debugToggle.addEventListener('click', function() {
-                debugPanel.style.display = debugPanel.style.display === 'block' ? 'none' : 'block';
+            // 更新代理状态显示
+            function updateProxyStatus() {
+                if (useRealAPI) {
+                    proxyStatus.textContent = `代理状态: 使用代理 ${currentProxyIndex + 1}/${CORS_PROXIES.length}`;
+                } else {
+                    proxyStatus.textContent = "代理状态: 未使用";
+                }
+            }
+            
+            // 切换模式
+            apiModeButton.addEventListener('click', function() {
+                useRealAPI = !useRealAPI;
+                updateModeButton();
+                updateProxyStatus();
+                
+                if (useRealAPI) {
+                    alert("已切换到真实API模式。请确保您已设置有效的API密钥。");
+                } else {
+                    alert("已切换到模拟模式。所有回复均为模拟数据。");
+                }
             });
             
             // 自动滚动到聊天底部
@@ -341,15 +360,114 @@
                 scrollToBottom();
             }
             
+            // 模拟AI响应函数
+            function getMockAIResponse(userMessage) {
+                // 根据用户消息的关键词提供特定响应
+                if (userMessage.toLowerCase().includes('你好') || userMessage.includes('您好')) {
+                    return "您好！我是预制爱的DeepSeek聊天助手，很高兴为您服务。请问有什么具体问题我可以帮助您解答吗？";
+                } else if (userMessage.toLowerCase().includes('名字') || userMessage.includes('称呼')) {
+                    return "我是预制爱的DeepSeek聊天助手，您可以叫我DeepSeek助手或直接提问。";
+                } else if (userMessage.toLowerCase().includes('功能') || userMessage.includes('做什么')) {
+                    return "我可以回答各种问题，提供信息查询、学习辅导、创意写作、代码帮助等多种服务。请随时向我提问！";
+                } else if (userMessage.toLowerCase().includes('天气')) {
+                    return "我无法获取实时天气信息，但您可以告诉我您所在的城市，我可以根据一般气候知识为您提供建议。";
+                } else if (userMessage.toLowerCase().includes('时间')) {
+                    return `现在大约是 ${new Date().toLocaleTimeString('zh-CN')}。请注意，这是您本地设备的时间。`;
+                } else {
+                    // 随机选择一个通用响应
+                    const responses = [
+                        "这是一个很好的问题！基于我的理解，您可能需要考虑以下几个方面...",
+                        "感谢您的提问。关于这个问题，我认为...",
+                        "我理解您的疑问。根据我的知识库，这种情况通常可以这样处理...",
+                        "这个问题很有趣！让我为您详细解释一下...",
+                        "很高兴您问到这个问题。根据当前的信息，我的建议是...",
+                        "我明白您的困惑。关于这一点，我可以提供以下见解..."
+                    ];
+                    return responses[Math.floor(Math.random() * responses.length)];
+                }
+            }
+            
+            // 使用真实API发送消息（带CORS代理）
+            async function sendWithRealAPI(message) {
+                let lastError = null;
+                
+                // 尝试所有可用的代理
+                for (let i = 0; i < CORS_PROXIES.length; i++) {
+                    const proxyIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
+                    const proxyUrl = CORS_PROXIES[proxyIndex];
+                    
+                    try {
+                        console.log(`尝试使用代理 ${proxyIndex + 1}: ${proxyUrl}`);
+                        
+                        // 构建代理URL
+                        const targetUrl = encodeURIComponent(DEEPSEEK_API_URL);
+                        const apiUrl = proxyUrl + targetUrl;
+                        
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                model: 'deepseek-chat',
+                                messages: [
+                                    {
+                                        role: 'system',
+                                        content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
+                                    },
+                                    {
+                                        role: 'user',
+                                        content: message
+                                    }
+                                ],
+                                temperature: 0.7,
+                                max_tokens: 2048,
+                                stream: false
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error(`代理 ${proxyIndex + 1} API错误响应:`, errorText);
+                            throw new Error(`API错误: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        const data = await response.json();
+                        console.log(`代理 ${proxyIndex + 1} API返回数据:`, data);
+                        
+                        // 更新当前代理索引为成功的代理
+                        currentProxyIndex = proxyIndex;
+                        updateProxyStatus();
+                        
+                        if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                            return data.choices[0].message.content;
+                        } else {
+                            throw new Error('API返回的数据格式不正确');
+                        }
+                    } catch (error) {
+                        console.error(`代理 ${proxyIndex + 1} 失败:`, error);
+                        lastError = error;
+                        // 继续尝试下一个代理
+                    }
+                }
+                
+                // 所有代理都失败，抛出最后一个错误
+                throw lastError || new Error('所有CORS代理都失败了');
+            }
+            
+            // 使用模拟API发送消息
+            async function sendWithMockAPI(message) {
+                // 模拟网络延迟
+                await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+                return getMockAIResponse(message);
+            }
+            
             // 发送消息到DeepSeek API
             async function sendMessage() {
                 const message = userInput.value.trim();
-                if (!message) {
-                    debugLog("消息为空，不发送");
-                    return;
-                }
-                
-                debugLog(`准备发送消息: "${message}"`);
+                if (!message) return;
                 
                 // 禁用输入和发送按钮
                 userInput.disabled = true;
@@ -367,84 +485,34 @@
                 scrollToBottom();
                 
                 try {
-                    debugLog("开始调用DeepSeek API");
+                    let response;
                     
-                    / 使用模拟响应进行测试
-                    // 注释掉下面的代码并取消注释后面的真实API调用代码
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    const mockResponse = {
-                        choices: [
-                            {
-                                message: {
-                                    content: `我已经收到您的消息："${message}"。这是模拟响应，实际会调用DeepSeek API。`
-                                }
-                            }
-                        ]
-                    };
-                    
-                    debugLog("收到模拟响应");
-                    
-                    // 隐藏输入指示器
-                    typingIndicator.style.display = 'none';
-                    
-                    // 添加AI回复到聊天界面
-                    addAIMessage(mockResponse.choices[0].message.content);
-                    
-                    /* 取消注释以下代码以使用真实的DeepSeek API
-                    // 直接调用DeepSeek API，使用非流式响应
-                    const response = await fetch(DEEPSEEK_API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-                        },
-                        body: JSON.stringify({
-                            model: 'deepseek-chat',
-                            messages: [
-                                {
-                                    role: 'system',
-                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
-                                },
-                                {
-                                    role: 'user',
-                                    content: message
-                                }
-                            ],
-                            temperature: 0.7,
-                            max_tokens: 2048,
-                            stream: false  // 使用非流式响应
-                        })
-                    });
-                    
-                    debugLog(`API响应状态: ${response.status} ${response.statusText}`);
-                    
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        debugLog(`API错误响应: ${errorText}`);
-                        throw new Error(`API错误: ${response.status} ${response.statusText}`);
-                    }
-                    
-                    const data = await response.json();
-                    debugLog(`API返回数据: ${JSON.stringify(data).substring(0, 200)}...`);
-                    
-                    // 隐藏输入指示器
-                    typingIndicator.style.display = 'none';
-                    
-                    // 添加AI回复到聊天界面
-                    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-                        addAIMessage(data.choices[0].message.content);
+                    if (useRealAPI) {
+                        response = await sendWithRealAPI(message);
                     } else {
-                        throw new Error('API返回的数据格式不正确');
+                        response = await sendWithMockAPI(message);
                     }
-                    */
+                    
+                    // 隐藏输入指示器
+                    typingIndicator.style.display = 'none';
+                    
+                    // 添加AI回复到聊天界面
+                    addAIMessage(response);
+                    
                 } catch (error) {
-                    debugLog(`发送消息时出错: ${error.message}`);
+                    console.error('发送消息时出错:', error);
                     
                     // 隐藏输入指示器
                     typingIndicator.style.display = 'none';
                     
                     // 显示错误消息
-                    errorMessage.textContent = `抱歉，发生了错误: ${error.message}。请稍后重试。`;
+                    let errorMsg = `抱歉，发生了错误: ${error.message}`;
+                    
+                    if (useRealAPI && error.message.includes('CORS')) {
+                        errorMsg += '。CORS代理可能暂时不可用，请稍后重试或切换到模拟模式。';
+                    }
+                    
+                    errorMessage.textContent = errorMsg + '。请稍后重试。';
                     errorMessage.style.display = 'block';
                     scrollToBottom();
                 } finally {
@@ -452,20 +520,15 @@
                     userInput.disabled = false;
                     sendButton.disabled = false;
                     userInput.focus();
-                    debugLog("发送流程完成");
                 }
             }
             
             // 发送按钮点击事件
-            sendButton.addEventListener('click', function() {
-                debugLog("发送按钮被点击");
-                sendMessage();
-            });
+            sendButton.addEventListener('click', sendMessage);
             
             // 输入框回车事件
             userInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    debugLog("回车键被按下");
                     sendMessage();
                 }
             });
@@ -476,9 +539,10 @@
             // 初始滚动到底部
             scrollToBottom();
             
-            debugLog("聊天助手初始化完成");
+            // 初始化模式按钮和代理状态
+            updateModeButton();
+            updateProxyStatus();
         });
     </script>
 </body>
 </html>
-
