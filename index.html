@@ -217,65 +217,6 @@
             font-size: 0.7rem;
         }
         
-        .proxy-config {
-            position: absolute;
-            top: 90px;
-            right: 20px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            cursor: pointer;
-        }
-        
-        .proxy-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .proxy-modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 90%;
-        }
-        
-        .proxy-modal h3 {
-            margin-bottom: 15px;
-            color: #2575fc;
-        }
-        
-        .proxy-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-bottom: 15px;
-        }
-        
-        .proxy-item {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-        
-        .proxy-item:hover {
-            background: #f5f5f5;
-        }
-        
-        .proxy-item.active {
-            background: #e6f0ff;
-            color: #2575fc;
-        }
-        
         @media (max-width: 600px) {
             .container {
                 height: calc(100vh - 20px);
@@ -290,7 +231,7 @@
                 font-size: 1.5rem;
             }
             
-            .api-mode, .proxy-status, .proxy-config {
+            .api-mode, .proxy-status {
                 position: static;
                 margin-top: 10px;
             }
@@ -302,9 +243,8 @@
         <header>
             <h1>预制爱的DeepSeek聊天助手</h1>
             <div class="subtitle">基于DeepSeek API的智能对话助手</div>
-            <button class="api-mode" id="api-mode">模拟模式</button>
-            <div class="proxy-status" id="proxy-status">代理状态: 未使用</div>
-            <div class="proxy-config" id="proxy-config">配置代理</div>
+            <button class="api-mode" id="api-mode">真实API模式</button>
+            <div class="proxy-status" id="proxy-status">连接: 直接连接</div>
         </header>
         
         <div class="chat-container" id="chat-container">
@@ -336,19 +276,6 @@
         &copy; 2023 预制爱的DeepSeek聊天助手 | 基于DeepSeek API
     </footer>
 
-    <!-- 代理配置模态框 -->
-    <div class="proxy-modal" id="proxy-modal">
-        <div class="proxy-modal-content">
-            <h3>选择CORS代理</h3>
-            <div class="proxy-list" id="proxy-list">
-                <!-- 代理列表将在这里动态生成 -->
-            </div>
-            <div style="display: flex; justify-content: flex-end;">
-                <button id="close-proxy-modal" style="padding: 8px 16px; background: #2575fc; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const chatContainer = document.getElementById('chat-container');
@@ -358,104 +285,30 @@
             const errorMessage = document.getElementById('error-message');
             const apiModeButton = document.getElementById('api-mode');
             const proxyStatus = document.getElementById('proxy-status');
-            const proxyConfig = document.getElementById('proxy-config');
-            const proxyModal = document.getElementById('proxy-modal');
-            const proxyList = document.getElementById('proxy-list');
-            const closeProxyModal = document.getElementById('close-proxy-modal');
             
             // DeepSeek API配置 - 请替换为您的实际API密钥
             const DEEPSEEK_API_KEY = "sk-1df626259cdf4af7b117fe76dfe2aec4";
             const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
             
-            // CORS代理配置 - 更可靠的代理列表
-            const CORS_PROXIES = [
-                {
-                    name: "CORS Anywhere (Heroku)",
-                    url: "https://cors-anywhere.herokuapp.com/",
-                    enabled: true
-                },
-                {
-                    name: "All Origins",
-                    url: "https://api.allorigins.win/raw?url=",
-                    enabled: true
-                },
-                {
-                    name: "CORS Proxy",
-                    url: "https://corsproxy.io/?",
-                    enabled: true
-                },
-                {
-                    name: "CORS Proxy (备用)",
-                    url: "https://corsproxy.github.io/?",
-                    enabled: true
-                },
-                {
-                    name: "No CORS Proxy (直接连接)",
-                    url: "",
-                    enabled: true
-                }
-            ];
-            
             // 当前模式：true为真实API模式，false为模拟模式
-            let useRealAPI = false;
-            let currentProxyIndex = 0;
+            let useRealAPI = true; // 默认使用真实API模式
             
             // 更新模式按钮文本
             function updateModeButton() {
                 apiModeButton.textContent = useRealAPI ? "真实API模式" : "模拟模式";
-            }
-            
-            // 更新代理状态显示
-            function updateProxyStatus() {
-                if (useRealAPI) {
-                    const proxy = CORS_PROXIES[currentProxyIndex];
-                    proxyStatus.textContent = `代理: ${proxy.name}`;
-                } else {
-                    proxyStatus.textContent = "代理状态: 未使用";
-                }
-            }
-            
-            // 初始化代理列表
-            function initProxyList() {
-                proxyList.innerHTML = '';
-                CORS_PROXIES.forEach((proxy, index) => {
-                    const proxyItem = document.createElement('div');
-                    proxyItem.className = `proxy-item ${index === currentProxyIndex ? 'active' : ''}`;
-                    proxyItem.innerHTML = `
-                        <strong>${proxy.name}</strong><br>
-                        <small>${proxy.url || '直接连接'}</small>
-                    `;
-                    proxyItem.addEventListener('click', () => {
-                        currentProxyIndex = index;
-                        updateProxyStatus();
-                        initProxyList();
-                    });
-                    proxyList.appendChild(proxyItem);
-                });
+                proxyStatus.textContent = useRealAPI ? "连接: 直接连接" : "连接: 模拟模式";
             }
             
             // 切换模式
             apiModeButton.addEventListener('click', function() {
                 useRealAPI = !useRealAPI;
                 updateModeButton();
-                updateProxyStatus();
                 
                 if (useRealAPI) {
                     alert("已切换到真实API模式。请确保您已设置有效的API密钥。");
                 } else {
                     alert("已切换到模拟模式。所有回复均为模拟数据。");
                 }
-            });
-            
-            // 打开代理配置
-            proxyConfig.addEventListener('click', function() {
-                initProxyList();
-                proxyModal.style.display = 'flex';
-            });
-            
-            // 关闭代理配置
-            closeProxyModal.addEventListener('click', function() {
-                proxyModal.style.display = 'none';
             });
             
             // 自动滚动到聊天底部
@@ -517,45 +370,30 @@
                 }
             }
             
-            // 使用真实API发送消息（带CORS代理）
+            // 使用真实API发送消息（直接连接）
             async function sendWithRealAPI(message) {
-                const proxy = CORS_PROXIES[currentProxyIndex];
-                console.log(`使用代理: ${proxy.name}`);
-                
                 try {
-                    let apiUrl;
+                    console.log("使用真实API直接连接");
                     
-                    if (proxy.url) {
-                        // 使用代理
-                        const encodedUrl = encodeURIComponent(DEEPSEEK_API_URL);
-                        apiUrl = proxy.url + encodedUrl;
-                    } else {
-                        // 直接连接
-                        apiUrl = DEEPSEEK_API_URL;
-                    }
-                    
-                    console.log(`请求URL: ${apiUrl}`);
-                    
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(DEEPSEEK_API_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
                         },
                         body: JSON.stringify({
                             model: 'deepseek-chat',
                             messages: [
                                 {
                                     role: 'system',
-                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。请用友好、专业且乐于助人的语气回答用户的问题。'
+                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。'
                                 },
                                 {
                                     role: 'user',
                                     content: message
                                 }
                             ],
-                            temperature: 0.7,
+                            temperature: 1.5, // 设置为1.5，增加创造性
                             max_tokens: 2048,
                             stream: false
                         })
@@ -563,12 +401,12 @@
                     
                     if (!response.ok) {
                         const errorText = await response.text();
-                        console.error(`API错误响应:`, errorText);
+                        console.error("API错误响应:", errorText);
                         throw new Error(`API错误: ${response.status} ${response.statusText}`);
                     }
                     
                     const data = await response.json();
-                    console.log(`API返回数据:`, data);
+                    console.log("API返回数据:", data);
                     
                     if (data.choices && data.choices.length > 0 && data.choices[0].message) {
                         return data.choices[0].message.content;
@@ -576,27 +414,11 @@
                         throw new Error('API返回的数据格式不正确');
                     }
                 } catch (error) {
-                    console.error(`代理 ${proxy.name} 失败:`, error);
+                    console.error('API调用失败:', error);
                     
-                    // 如果是网络错误，尝试下一个代理
-                    if (error.message.includes('Failed to fetch') || error.message.includes('Network Error')) {
-                        // 寻找下一个可用的代理
-                        let nextProxyIndex = -1;
-                        for (let i = 1; i < CORS_PROXIES.length; i++) {
-                            const nextIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
-                            if (CORS_PROXIES[nextIndex].enabled && nextIndex !== currentProxyIndex) {
-                                nextProxyIndex = nextIndex;
-                                break;
-                            }
-                        }
-                        
-                        if (nextProxyIndex !== -1) {
-                            console.log(`切换到下一个代理: ${CORS_PROXIES[nextProxyIndex].name}`);
-                            currentProxyIndex = nextProxyIndex;
-                            updateProxyStatus();
-                            // 递归调用，使用新代理
-                            return sendWithRealAPI(message);
-                        }
+                    // 如果是CORS错误，建议切换到模拟模式
+                    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                        throw new Error('直接连接失败，可能是CORS限制。请切换到模拟模式或检查API密钥。');
                     }
                     
                     throw error;
@@ -654,11 +476,11 @@
                     // 显示错误消息
                     let errorMsg = `抱歉，发生了错误: ${error.message}`;
                     
-                    if (useRealAPI && error.message.includes('Failed to fetch')) {
-                        errorMsg += '。网络连接失败，请检查网络连接或尝试切换代理。';
+                    if (useRealAPI && (error.message.includes('CORS') || error.message.includes('Failed to fetch'))) {
+                        errorMsg += '。建议切换到模拟模式，或检查您的API密钥和网络连接。';
                     }
                     
-                    errorMessage.textContent = errorMsg + '。请稍后重试。';
+                    errorMessage.textContent = errorMsg;
                     errorMessage.style.display = 'block';
                     scrollToBottom();
                 } finally {
@@ -685,10 +507,8 @@
             // 初始滚动到底部
             scrollToBottom();
             
-            // 初始化模式按钮和代理状态
+            // 初始化模式按钮
             updateModeButton();
-            updateProxyStatus();
-            initProxyList();
         });
     </script>
 </body>
