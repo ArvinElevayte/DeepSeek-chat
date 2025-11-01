@@ -92,7 +92,7 @@ function sendMessage() {
     }
 
     const apiKey = 'sk-1df626259cdf4af7b117fe76dfe2aec4';
-    const endpoint = 'https://api.deepseek.com/chat/completions';
+    const endpoint = 'https://api.deepseek.com';
 
     const payload = {
         model: "deepseek-chat",
@@ -100,7 +100,7 @@ function sendMessage() {
             { role: "system", content: "You are a helpful assistant" },
             { role: "user", content: message }
         ],
-        stream: false
+        stream: true
     };
 
     fetch(endpoint, {
