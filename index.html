@@ -206,9 +206,27 @@
             font-size: 0.8rem;
         }
         
-        .proxy-status {
+        .memory-controls {
             position: absolute;
             top: 60px;
+            right: 20px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .memory-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        
+        .proxy-status {
+            position: absolute;
+            top: 100px;
             right: 20px;
             background: rgba(255,255,255,0.2);
             color: white;
@@ -231,9 +249,13 @@
                 font-size: 1.5rem;
             }
             
-            .api-mode, .proxy-status {
+            .api-mode, .memory-controls, .proxy-status {
                 position: static;
                 margin-top: 10px;
+            }
+            
+            .memory-controls {
+                justify-content: center;
             }
         }
     </style>
@@ -244,6 +266,10 @@
             <h1>预制爱的DeepSeek聊天助手</h1>
             <div class="subtitle">基于DeepSeek API的智能对话助手</div>
             <button class="api-mode" id="api-mode">真实API模式</button>
+            <div class="memory-controls">
+                <button class="memory-btn" id="clear-memory">清除记忆</button>
+                <button class="memory-btn" id="export-memory">导出对话</button>
+            </div>
             <div class="proxy-status" id="proxy-status">连接: 直接连接</div>
         </header>
         
@@ -273,7 +299,7 @@
     </div>
     
     <footer>
-        &copy; 2025 预制爱的DeepSeek聊天助手 | 基于DeepSeek API
+        &copy; 2023 预制爱的DeepSeek聊天助手 | 基于DeepSeek API
     </footer>
 
     <script>
@@ -284,6 +310,8 @@
             const typingIndicator = document.getElementById('typing-indicator');
             const errorMessage = document.getElementById('error-message');
             const apiModeButton = document.getElementById('api-mode');
+            const clearMemoryButton = document.getElementById('clear-memory');
+            const exportMemoryButton = document.getElementById('export-memory');
             const proxyStatus = document.getElementById('proxy-status');
             
             // DeepSeek API配置 - 请替换为您的实际API密钥
@@ -292,6 +320,14 @@
             
             // 当前模式：true为真实API模式，false为模拟模式
             let useRealAPI = true; // 默认使用真实API模式
+            
+            // 对话记忆存储
+            let conversationHistory = [
+                {
+                    role: 'assistant',
+                    content: '您好！我是预制爱的DeepSeek聊天助手，很高兴为您服务。请问有什么可以帮您的吗？'
+                }
+            ];
             
             // 更新模式按钮文本
             function updateModeButton() {
@@ -309,6 +345,48 @@
                 } else {
                     alert("已切换到模拟模式。所有回复均为模拟数据。");
                 }
+            });
+            
+            // 清除记忆
+            clearMemoryButton.addEventListener('click', function() {
+                if (confirm("确定要清除对话记忆吗？这将删除所有之前的对话内容。")) {
+                    conversationHistory = [
+                        {
+                            role: 'assistant',
+                            content: '您好！我是预制爱的DeepSeek聊天助手，很高兴为您服务。请问有什么可以帮您的吗？'
+                        }
+                    ];
+                    
+                    // 清空聊天界面，只保留初始消息
+                    chatContainer.innerHTML = '';
+                    const initialMessage = document.createElement('div');
+                    initialMessage.className = 'message ai-message';
+                    initialMessage.innerHTML = `
+                        <div class="ai-name">DeepSeek助手</div>
+                        您好！我是预制爱的DeepSeek聊天助手，很高兴为您服务。请问有什么可以帮您的吗？
+                    `;
+                    chatContainer.appendChild(initialMessage);
+                    
+                    alert("对话记忆已清除。");
+                }
+            });
+            
+            // 导出对话
+            exportMemoryButton.addEventListener('click', function() {
+                const conversationText = conversationHistory.map(msg => {
+                    const role = msg.role === 'user' ? '用户' : 'DeepSeek助手';
+                    return `${role}: ${msg.content}`;
+                }).join('\n\n');
+                
+                const blob = new Blob([conversationText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `deepseek对话记录_${new Date().toISOString().slice(0, 10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             });
             
             // 自动滚动到聊天底部
@@ -343,8 +421,20 @@
                 scrollToBottom();
             }
             
-            // 模拟AI响应函数
-            function getMockAIResponse(userMessage) {
+            // 模拟AI响应函数（带记忆功能）
+            function getMockAIResponse(userMessage, history) {
+                // 根据对话历史和当前消息生成响应
+                const lastUserMessages = history
+                    .filter(msg => msg.role === 'user')
+                    .slice(-3) // 只考虑最近3条用户消息
+                    .map(msg => msg.content.toLowerCase());
+                
+                // 检查是否有连续对话的迹象
+                const hasContinuation = lastUserMessages.some(msg => 
+                    msg.includes('刚才') || msg.includes('之前') || 
+                    msg.includes('继续') || msg.includes('还有')
+                );
+                
                 // 根据用户消息的关键词提供特定响应
                 if (userMessage.toLowerCase().includes('你好') || userMessage.includes('您好')) {
                     return "您好！我是预制爱的DeepSeek聊天助手，很高兴为您服务。请问有什么具体问题我可以帮助您解答吗？";
@@ -356,6 +446,9 @@
                     return "我无法获取实时天气信息，但您可以告诉我您所在的城市，我可以根据一般气候知识为您提供建议。";
                 } else if (userMessage.toLowerCase().includes('时间')) {
                     return `现在大约是 ${new Date().toLocaleTimeString('zh-CN')}。请注意，这是您本地设备的时间。`;
+                } else if (hasContinuation) {
+                    // 如果用户提到之前的对话，生成一个连贯的回复
+                    return "关于我们之前讨论的内容，我想补充一点...实际上，这个问题可以从多个角度来理解。";
                 } else {
                     // 随机选择一个通用响应
                     const responses = [
@@ -370,10 +463,23 @@
                 }
             }
             
-            // 使用真实API发送消息（直接连接）
-            async function sendWithRealAPI(message) {
+            // 使用真实API发送消息（直接连接，带记忆功能）
+            async function sendWithRealAPI(message, history) {
                 try {
                     console.log("使用真实API直接连接");
+                    
+                    // 构建消息数组，包含系统消息和对话历史
+                    const messages = [
+                        {
+                            role: 'system',
+                            content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手，属于深度求索旗下的DeepSeek R1-0528模型。请记住之前的对话内容，提供连贯的回答。'
+                        },
+                        ...history.slice(-10), // 保留最近10轮对话作为上下文
+                        {
+                            role: 'user',
+                            content: message
+                        }
+                    ];
                     
                     const response = await fetch(DEEPSEEK_API_URL, {
                         method: 'POST',
@@ -383,16 +489,7 @@
                         },
                         body: JSON.stringify({
                             model: 'deepseek-reasoner',
-                            messages: [
-                                {
-                                    role: 'system',
-                                    content: '你是一个名为"预制爱的DeepSeek聊天助手"的AI助手。'
-                                },
-                                {
-                                    role: 'user',
-                                    content: message
-                                }
-                            ],
+                            messages: messages,
                             temperature: 1.5, // 设置为1.5，增加创造性
                             max_tokens: 2048,
                             stream: false
@@ -425,11 +522,11 @@
                 }
             }
             
-            // 使用模拟API发送消息
-            async function sendWithMockAPI(message) {
+            // 使用模拟API发送消息（带记忆功能）
+            async function sendWithMockAPI(message, history) {
                 // 模拟网络延迟
                 await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-                return getMockAIResponse(message);
+                return getMockAIResponse(message, history);
             }
             
             // 发送消息到DeepSeek API
@@ -444,6 +541,12 @@
                 // 添加用户消息到聊天界面
                 addUserMessage(message);
                 
+                // 将用户消息添加到历史记录
+                conversationHistory.push({
+                    role: 'user',
+                    content: message
+                });
+                
                 // 清空输入框
                 userInput.value = '';
                 
@@ -456,9 +559,9 @@
                     let response;
                     
                     if (useRealAPI) {
-                        response = await sendWithRealAPI(message);
+                        response = await sendWithRealAPI(message, conversationHistory);
                     } else {
-                        response = await sendWithMockAPI(message);
+                        response = await sendWithMockAPI(message, conversationHistory);
                     }
                     
                     // 隐藏输入指示器
@@ -466,6 +569,17 @@
                     
                     // 添加AI回复到聊天界面
                     addAIMessage(response);
+                    
+                    // 将AI回复添加到历史记录
+                    conversationHistory.push({
+                        role: 'assistant',
+                        content: response
+                    });
+                    
+                    // 如果历史记录太长，删除一些早期记录（保留最近20条消息）
+                    if (conversationHistory.length > 20) {
+                        conversationHistory = conversationHistory.slice(-20);
+                    }
                     
                 } catch (error) {
                     console.error('发送消息时出错:', error);
@@ -513,4 +627,3 @@
     </script>
 </body>
 </html>
-
